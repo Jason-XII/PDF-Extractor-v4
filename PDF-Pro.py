@@ -1,20 +1,25 @@
 from os.path import split
 from os import startfile
 from elegantUI import *
-from PySide2.QtGui import QIcon, QPixmap
 from PySide2.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel,
                                QApplication, QWidget, QMainWindow, QLineEdit,
-                               QFileDialog, QListWidgetItem,
-                               QSpinBox, QListView)
+                               QFileDialog, QListWidgetItem, QStackedWidget,
+                               QSpinBox, QRadioButton)
 from PySide2.QtCore import Qt
 from PyPDF2.merger import PdfFileMerger, PdfFileReader, PdfFileWriter
 import tempfile
+import win10toast
+
+toast = win10toast.ToastNotifier()
+
+
+def filter_name(name):
+    return split(name)[-1]
 
 
 class MergePDFWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.pdf_list = []
         self.pdf_merger = PdfFileMerger(strict=False)
         self.box = QVBoxLayout(self)
         self.box.setContentsMargins(0, 20, 20, 10)
@@ -30,15 +35,17 @@ class MergePDFWidget(QWidget):
         #                                          parent=self, on_press=self.btn_add_file_clicked)
         self.pdf_listview = lists.SmartList(self,
                                             on_item_click=self.pdf_item_clicked,
-                                            on_item_double_click=self.pdf_item_double_clicked)
-        self.btn_select_file = self.pdf_listview.add_btn_add('添加PDF', 'darker', self.btn_add_file_clicked,
-                                                             '打开文件.png')
+                                            on_item_double_click=self.pdf_item_double_clicked,
+                                            add_filter=filter_name)
+        self.btn_select_file = self.pdf_listview.add_btn_add('添加PDF', 'darker','打开文件.png',  self.btn_add_file_clicked)
         self.btn_delete_item = self.pdf_listview.add_delete_item_btn('删除选定项目',
                                                                      btn_type='darker',
-                                                                     icon='删除一项.png')
+                                                                     icon='删除一项.png',
+                                                                     delete_callback=self.del_callback)
         self.btn_clear_all = self.pdf_listview.add_clear_btn('清空所有项目',
                                                              btn_type='darker',
-                                                             icon='删除.png')
+                                                             icon='删除.png',
+                                                             clear_callback=self.clear_callback)
         self.btn_download = buttons.DarkerButton(icon='下载文件.png', text='导出PDF文件',
                                                  parent=self, on_press=self.merge_and_write)
         self.btn_download.setDisabled(True)
@@ -53,32 +60,29 @@ class MergePDFWidget(QWidget):
         self.box.addLayout(self.third_line_hbox)
         self.box.addWidget(self.btn_download)
 
+    def del_callback(self):
+        if len(self.pdf_listview.items) == 0:
+            self.btn_download.setDisabled(True)
+
+    def clear_callback(self):
+        if len(self.pdf_listview.items) == 0:
+            self.btn_download.setDisabled(True)
+
     def pdf_item_clicked(self, item: QListWidgetItem):
         """When the user clicked an item in pdf_listview(QListWidget), changes the
         file_path(QLineEdit)'s text to the context of the clicked item."""
-        self.file_path.setText(self.pdf_list[self.pdf_listview.currentIndex().row()])
+        self.file_path.setText(self.pdf_listview.items[self.pdf_listview.currentIndex().row()])
         self.btn_delete_item.setDisabled(False)
 
     def pdf_item_double_clicked(self, item: QListWidgetItem):
         if dialogs.Messages().send_question('打开', '是否打开这个PDF文件？') == 0:
-            startfile(self.pdf_list[self.pdf_listview.currentIndex().row()])
+            startfile(self.pdf_listview.items[self.pdf_listview.currentIndex().row()])
 
     def btn_add_file_clicked(self):
         filename, _ = QFileDialog.getOpenFileName(self, '添加文件', '', 'PDF文件(*.pdf)')
         if not filename:
             return
-        try:
-            PdfFileReader(open(filename, 'rb'))
-        except OSError:
-            information = 'PDF文件无法打开，也许是因为格式不正确，也可能是正在被其他程序使用。' \
-                          '请关掉可能使用它的程序后再试。'
-            dialogs.Messages().send_information('PDF文件无法打开', information)
-            return
-
-        # Everything is ok, then go on
-        self.pdf_list.append(filename)
-        item = QListWidgetItem(split(filename)[-1])
-        self.pdf_listview.addItem(item)
+        self.pdf_listview.addItem(filename)
         self.file_path.setText(filename)
         self.btn_clear_all.setDisabled(False)
         self.btn_download.setDisabled(False)
@@ -88,13 +92,26 @@ class MergePDFWidget(QWidget):
         if not filename:
             return
         merger = PdfFileMerger(strict=False)
+        
         try:
-            for item in self.pdf_list:
-                merger.append(open(item, 'rb'))
+            self.btn_download.setText('正在导出······')
+            self.btn_download.setDisabled(True)
+            for item in self.pdf_listview.items:
+                while True:
+                    try:
+                        merger.append(open(item, 'rb'))
+                    except (OSError, Exception):
+                        information = 'PDF文件无法打开，也许是因为格式不正确，也可能是正在被其他程序使用。' \
+                                      '请关掉可能使用它的程序后再试。'
+                        toast.show_toast('PDF文件无法打开', information, threaded=True)
+                    else:
+                        break
             merger.write(open(filename, 'wb'))
-            dialogs.Messages().send_information('成功', '成功合并PDF，已导出！')
+            self.btn_download.setText('导出PDF文件')
+            self.btn_download.setDisabled(False)
+            toast.show_toast('成功', '成功合并PDF，已导出！', threaded=True)
         except (IOError, OSError):
-            dialogs.Messages().send_warning(self, '错误', '由于权限错误，无法导出PDF，请换一个路径再试。')
+            toast.show_toast('错误', '由于权限错误，无法导出PDF，请换一个路径再试。', threaded=True)
             return
 
 
@@ -102,9 +119,12 @@ class ExtractPDFWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.master = parent
-        self.pdf_data = []
         self.selected = None
         self.construct_UI()
+
+    def filter_name(self, labels):
+        result = f'{split(labels[0])[-1]}中的第 {labels[1]} 至 {labels[2]} 页'
+        return result
 
     def construct_UI(self):
         self.vbox = QVBoxLayout(self)
@@ -117,11 +137,11 @@ class ExtractPDFWidget(QWidget):
         self.line_edit_file_path.setReadOnly(True)
         self.line_edit_file_path.setStyleSheet('padding: 10px;')
         self.first_line_hbox.addWidget(self.line_edit_file_path)
-        self.btn_add_pdf = buttons.DarkerButton(icon='打开文件.png', text='选择PDF', parent=self,
-                                                on_press=self.add_pdf_dialog_triggered)
+        self.list = lists.SmartList(self, on_item_click=self.on_list_item_selected,
+                                    on_item_double_click=self.on_double_click, add_filter=self.filter_name)
+        self.btn_add_pdf = self.list.add_btn_add('选择PDF', 'darker', '打开文件.png', self.add_pdf_dialog_triggered)
         self.first_line_hbox.addWidget(self.btn_add_pdf)
         self.vbox.addLayout(self.first_line_hbox)
-
         self.second_line_hbox = QHBoxLayout()
         self.hbox3 = QHBoxLayout()
         self.spin_start = spinbox.SpinBox(self)
@@ -147,19 +167,15 @@ class ExtractPDFWidget(QWidget):
         self.vbox.addLayout(self.second_line_hbox)
 
         # setup the third line of UI
-        self.list = lists.StandardList(self)
-        self.list.itemSelectionChanged.connect(self.on_list_item_selected)
-        self.list.itemDoubleClicked.connect(self.on_double_click)
+
         self.vbox.addWidget(self.list)
 
         # setup the fourth line of UI
         self.fourth_line_hbox = QHBoxLayout(self)
         self.fourth_line_hbox.setContentsMargins(0, 0, 0, 0)
-        self.btn_del_item = buttons.DarkerButton(icon='删除一项.png', text='删除选定项目', parent=self,
-                                                 on_press=self.delete_item)
+        self.btn_del_item = self.list.add_delete_item_btn('删除选定项目', 'darker', '删除一项.png', self.del_callback)
         self.btn_del_item.setDisabled(True)
-        self.btn_clear = buttons.DarkerButton(icon='删除.png', text='清空列表', parent=self,
-                                              on_press=self.clear_all_items)
+        self.btn_clear = self.list.add_clear_btn('删除所有项目', 'darker', '删除.png', self.clear_callback)
         self.btn_clear.setDisabled(True)
         self.fourth_line_hbox.addWidget(self.btn_del_item)
         self.fourth_line_hbox.addWidget(self.btn_clear)
@@ -182,7 +198,7 @@ class ExtractPDFWidget(QWidget):
             except OSError:
                 information = 'PDF文件无法打开，也许是因为格式不正确，也可能是正在被其他程序使用。' \
                               '请关掉可能使用它的程序后再试。'
-                dialogs.Messages().send_information('PDF文件无法打开', information)
+                toast.show_toast('PDF文件无法打开', information, threaded=True)
                 return
             else:
                 self.spin_start.setDisabled(False)
@@ -192,31 +208,18 @@ class ExtractPDFWidget(QWidget):
                 self.line_edit_file_path.setText(filename)
                 self.btn_add_pdf.setText('重新选择PDF')
 
-    def delete_item(self):
-        current_index = self.list.currentIndex().row()
-        print(current_index)
-        if current_index == -1:
-            pass
-        else:
-            self.list.takeItem(current_index)
-            self.pdf_data.pop(current_index)
-            if len(self.pdf_data) == 0:
-                self.btn_clear.setDisabled(True)
-                self.btn_del_item.setDisabled(True)
-                self.btn_export.setDisabled(True)
+    def del_callback(self):
+        if len(self.list.items) == 0:
+            self.btn_export.setDisabled(True)
 
-    def clear_all_items(self):
-        status = dialogs.Messages().send_question('清空', '确认删除列表中的所有项目吗？')
-        if status == 0:
-            self.pdf_data = []
-            self.list.clear()
+    def clear_callback(self):
+        if len(self.list.items) == 0:
+            self.btn_export.setDisabled(True)
 
     def on_add(self):
         start = int(self.spin_start.value())
         end = int(self.spin_end.value())
-        string = f'{split(self.selected)[-1]}中的第 {start} 至 {end} 页'
-        self.list.addItem(string)
-        self.pdf_data.append((self.selected, start, end))
+        self.list.addItem((self.selected, start, end))
         self.btn_clear.setDisabled(False)
         self.btn_export.setDisabled(False)
 
@@ -229,7 +232,7 @@ class ExtractPDFWidget(QWidget):
     def on_double_click(self):
         if dialogs.Messages().send_question('打开', '是否打开这一项的预览？') == 0:
             writer = PdfFileWriter()
-            data = self.pdf_data[self.list.currentIndex().row()]
+            data = self.list.items[self.list.currentIndex().row()]
             filename = data[0]
             start, end = data[1], data[2]
             reader = PdfFileReader(open(filename, 'rb'))
@@ -245,7 +248,9 @@ class ExtractPDFWidget(QWidget):
         out, _ = QFileDialog.getSaveFileName(self, '导出', filter='PDF文件(*.pdf)')
         if not out:
             return
-        for data in self.pdf_data:
+        self.btn_export.setDisabled(True)
+        self.btn_export.setText('正在导出PDF······')
+        for data in self.list.items:
             start, end = data[1], data[2]
             reader = PdfFileReader(open(data[0], 'rb'))
             for page_num in range(int(start) - 1, int(end)):
@@ -253,7 +258,7 @@ class ExtractPDFWidget(QWidget):
                 writer.addPage(page)
         with open(out, 'wb') as pdf:
             writer.write(pdf)
-        dialogs.Messages().send_information(self, '成功', '成功抽取了PDF中的页码，已导出！')
+        toast.show_toast('成功', '成功抽取了PDF中的页码，已导出！', threaded=True)
 
     def on_list_item_selected(self):
         self.btn_del_item.setDisabled(False)
@@ -272,7 +277,16 @@ class DeletePDFWidget(QWidget):
         self.btn_add = buttons.DarkerButton('选择PDF', icon='添加.png',
                                             parent=self, on_press=self.on_add_file)
         self.vbox.addWidget(self.btn_add)
-        self.toolbox = tabs.ToolBox(self)
+        self.radio_btn_box = QHBoxLayout(self)
+        self.radio_single_page = QRadioButton('删除单页', self)
+        self.radio_single_page.setChecked(True)
+        self.radio_single_page.toggled.connect(self.page_changed)
+        self.radio_multi_page = QRadioButton('删除多页', self)
+        self.radio_multi_page.toggled.connect(self.page_changed)
+        self.radio_btn_box.addWidget(self.radio_single_page)
+        self.radio_btn_box.addWidget(self.radio_multi_page)
+        self.vbox.addLayout(self.radio_btn_box)
+        self.stacked = QStackedWidget(self)
         self.hbox0 = QHBoxLayout(self)
         self.page = QSpinBox(self)
         self.page.valueChanged.connect(self.page_changed)
@@ -282,12 +296,10 @@ class DeletePDFWidget(QWidget):
         self.hbox0.addWidget(QLabel('页'))
         w0 = QWidget()
         w0.setLayout(self.hbox0)
-        self.toolbox.addItem(w0, '删除单页')
+        self.stacked.addWidget(w0)
         self.hbox = QHBoxLayout(self)
         self.start = QSpinBox(self)
-        self.start.valueChanged.connect(self.start_or_end_changed)
         self.end = QSpinBox(self)
-        self.end.valueChanged.connect(self.start_or_end_changed)
         self.start.setDisabled(True)
         self.end.setDisabled(True)
         self.hbox.addWidget(QLabel('删除'), alignment=Qt.AlignRight | Qt.AlignVCenter)
@@ -297,8 +309,8 @@ class DeletePDFWidget(QWidget):
         self.hbox.addWidget(QLabel('的PDF页码'))
         w = QWidget()
         w.setLayout(self.hbox)
-        self.toolbox.addItem(w, '删除多页')
-        self.vbox.addWidget(self.toolbox)
+        self.stacked.addWidget(w)
+        self.vbox.addWidget(self.stacked)
         self.btn_submit = buttons.DarkerButton('导出PDF', icon='下载文件.png',
                                                parent=self, on_press=self.on_export)
         self.btn_submit.setDisabled(True)
@@ -308,7 +320,8 @@ class DeletePDFWidget(QWidget):
 
     def on_add_file(self):
         filename, _ = QFileDialog.getOpenFileName(self, '添加文件', '', 'PDF文件(*.pdf)')
-        if not filename: return
+        if not filename:
+            return
         try:
             pdf = PdfFileReader(open(filename, 'rb'))
             for i in [self.page, self.start, self.end]:
@@ -317,7 +330,7 @@ class DeletePDFWidget(QWidget):
         except OSError:
             information = 'PDF文件无法打开，也许是因为格式不正确，也可能是正在被其他程序使用。' \
                           '请关掉可能使用它的程序后再试。'
-            dialogs.Messages().send_information('PDF文件无法打开', information)
+            toast.show_toast('PDF文件无法打开', information, threaded=True)
             return
         else:
             self.selected = filename
@@ -327,22 +340,12 @@ class DeletePDFWidget(QWidget):
             self.end.setDisabled(False)
 
     def page_changed(self):
-        value = self.page.value()
-        self.data = [value]
-        self.toolbox.setItemText(0, '删除单页（已选择）')
-        self.toolbox.setItemText(1, '删除多页')
-
-        self.btn_submit.setDisabled(False)
-
-    def start_or_end_changed(self):
-        start, end = self.start.value(), self.end.value()
-        self.data = [start, end]
-        self.toolbox.setItemText(1, '删除多页（已选择）')
-        self.toolbox.setItemText(0, '删除单页')
-        if start < end:
-            self.btn_submit.setDisabled(False)
-        else:
-            self.btn_submit.setDisabled(True)
+        if self.radio_single_page.isChecked():
+            self.data = [int(self.page.value())]
+            self.stacked.setCurrentIndex(0)
+        elif self.radio_multi_page.isChecked():
+            self.data = [int(self.start.value()), int(self.end.value())]
+            self.stacked.setCurrentIndex(1)
 
     def on_export(self):
         save_filename = QFileDialog.getSaveFileName(
@@ -363,7 +366,7 @@ class DeletePDFWidget(QWidget):
                 for page in range(end, reader.getNumPages()):
                     writer.addPage(reader.getPage(page))
                 writer.write(save_pdf)
-                dialogs.Messages().send_information('成功', '成功删除PDF指定页码，已导出！')
+                toast.show_toast('成功', '成功删除PDF指定页码，已导出！', threaded=True)
 
 
 class MainApplicationWindow(QMainWindow):
