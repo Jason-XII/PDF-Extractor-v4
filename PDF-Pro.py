@@ -4,11 +4,12 @@ from elegantUI import *
 from PySide2.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel,
                                QApplication, QWidget, QMainWindow, QLineEdit,
                                QFileDialog, QListWidgetItem, QStackedWidget,
-                               QSpinBox, QRadioButton)
+                               QSpinBox, QRadioButton, QAction)
 from PySide2.QtCore import Qt
 from PyPDF2.merger import PdfFileMerger, PdfFileReader, PdfFileWriter
 import tempfile
 import win10toast
+import urllib.request
 
 toast = win10toast.ToastNotifier()
 
@@ -37,7 +38,8 @@ class MergePDFWidget(QWidget):
                                             on_item_click=self.pdf_item_clicked,
                                             on_item_double_click=self.pdf_item_double_clicked,
                                             add_filter=filter_name)
-        self.btn_select_file = self.pdf_listview.add_btn_add('添加PDF', 'darker','打开文件.png',  self.btn_add_file_clicked)
+        self.btn_select_file = self.pdf_listview.add_btn_add(
+            '添加PDF', 'darker', '打开文件.png',  self.btn_add_file_clicked)
         self.btn_delete_item = self.pdf_listview.add_delete_item_btn('删除选定项目',
                                                                      btn_type='darker',
                                                                      icon='删除一项.png',
@@ -71,15 +73,18 @@ class MergePDFWidget(QWidget):
     def pdf_item_clicked(self, item: QListWidgetItem):
         """When the user clicked an item in pdf_listview(QListWidget), changes the
         file_path(QLineEdit)'s text to the context of the clicked item."""
-        self.file_path.setText(self.pdf_listview.items[self.pdf_listview.currentIndex().row()])
+        self.file_path.setText(
+            self.pdf_listview.items[self.pdf_listview.currentIndex().row()])
         self.btn_delete_item.setDisabled(False)
 
     def pdf_item_double_clicked(self, item: QListWidgetItem):
         if dialogs.Messages().send_question('打开', '是否打开这个PDF文件？') == 0:
-            startfile(self.pdf_listview.items[self.pdf_listview.currentIndex().row()])
+            startfile(
+                self.pdf_listview.items[self.pdf_listview.currentIndex().row()])
 
     def btn_add_file_clicked(self):
-        filename, _ = QFileDialog.getOpenFileName(self, '添加文件', '', 'PDF文件(*.pdf)')
+        filename, _ = QFileDialog.getOpenFileName(
+            self, '添加文件', '', 'PDF文件(*.pdf)')
         if not filename:
             return
         self.pdf_listview.addItem(filename)
@@ -88,11 +93,12 @@ class MergePDFWidget(QWidget):
         self.btn_download.setDisabled(False)
 
     def merge_and_write(self):
-        filename, _ = QFileDialog.getSaveFileName(self, '保存PDF', '', 'PDF文件(*.pdf)')
+        filename, _ = QFileDialog.getSaveFileName(
+            self, '保存PDF', '', 'PDF文件(*.pdf)')
         if not filename:
             return
         merger = PdfFileMerger(strict=False)
-        
+
         try:
             self.btn_download.setText('正在导出······')
             self.btn_download.setDisabled(True)
@@ -103,7 +109,8 @@ class MergePDFWidget(QWidget):
                     except (OSError, Exception):
                         information = 'PDF文件无法打开，也许是因为格式不正确，也可能是正在被其他程序使用。' \
                                       '请关掉可能使用它的程序后再试。'
-                        toast.show_toast('PDF文件无法打开', information, threaded=True)
+                        toast.show_toast(
+                            'PDF文件无法打开', information, threaded=True)
                     else:
                         break
             merger.write(open(filename, 'wb'))
@@ -139,7 +146,8 @@ class ExtractPDFWidget(QWidget):
         self.first_line_hbox.addWidget(self.line_edit_file_path)
         self.list = lists.SmartList(self, on_item_click=self.on_list_item_selected,
                                     on_item_double_click=self.on_double_click, add_filter=self.filter_name)
-        self.btn_add_pdf = self.list.add_btn_add('选择PDF', 'darker', '打开文件.png', self.add_pdf_dialog_triggered)
+        self.btn_add_pdf = self.list.add_btn_add(
+            '选择PDF', 'darker', '打开文件.png', self.add_pdf_dialog_triggered)
         self.first_line_hbox.addWidget(self.btn_add_pdf)
         self.vbox.addLayout(self.first_line_hbox)
         self.second_line_hbox = QHBoxLayout()
@@ -173,21 +181,25 @@ class ExtractPDFWidget(QWidget):
         # setup the fourth line of UI
         self.fourth_line_hbox = QHBoxLayout(self)
         self.fourth_line_hbox.setContentsMargins(0, 0, 0, 0)
-        self.btn_del_item = self.list.add_delete_item_btn('删除选定项目', 'darker', '删除一项.png', self.del_callback)
+        self.btn_del_item = self.list.add_delete_item_btn(
+            '删除选定项目', 'darker', '删除一项.png', self.del_callback)
         self.btn_del_item.setDisabled(True)
-        self.btn_clear = self.list.add_clear_btn('删除所有项目', 'darker', '删除.png', self.clear_callback)
+        self.btn_clear = self.list.add_clear_btn(
+            '删除所有项目', 'darker', '删除.png', self.clear_callback)
         self.btn_clear.setDisabled(True)
         self.fourth_line_hbox.addWidget(self.btn_del_item)
         self.fourth_line_hbox.addWidget(self.btn_clear)
         self.vbox.addLayout(self.fourth_line_hbox)
 
-        self.btn_export = buttons.DarkerButton('导出PDF文件', self.on_export, self, icon='下载文件.png')
+        self.btn_export = buttons.DarkerButton(
+            '导出PDF文件', self.on_export, self, icon='下载文件.png')
         self.btn_export.setDisabled(True)
         self.vbox.addWidget(self.btn_export)
         self.setLayout(self.vbox)
 
     def add_pdf_dialog_triggered(self):
-        filename, _ = QFileDialog.getOpenFileName(self, '添加PDF', filter='PDF文件(*.pdf)')
+        filename, _ = QFileDialog.getOpenFileName(
+            self, '添加PDF', filter='PDF文件(*.pdf)')
         if filename:
             try:
                 pdf = PdfFileReader(open(filename, 'rb'), strict=False)
@@ -291,7 +303,8 @@ class DeletePDFWidget(QWidget):
         self.page = QSpinBox(self)
         self.page.valueChanged.connect(self.page_changed)
         self.page.setDisabled(True)
-        self.hbox0.addWidget(QLabel('删除第'), alignment=Qt.AlignRight | Qt.AlignVCenter)
+        self.hbox0.addWidget(
+            QLabel('删除第'), alignment=Qt.AlignRight | Qt.AlignVCenter)
         self.hbox0.addWidget(self.page)
         self.hbox0.addWidget(QLabel('页'))
         w0 = QWidget()
@@ -302,7 +315,8 @@ class DeletePDFWidget(QWidget):
         self.end = QSpinBox(self)
         self.start.setDisabled(True)
         self.end.setDisabled(True)
-        self.hbox.addWidget(QLabel('删除'), alignment=Qt.AlignRight | Qt.AlignVCenter)
+        self.hbox.addWidget(
+            QLabel('删除'), alignment=Qt.AlignRight | Qt.AlignVCenter)
         self.hbox.addWidget(self.start)
         self.hbox.addWidget(QLabel('至'))
         self.hbox.addWidget(self.end)
@@ -319,7 +333,8 @@ class DeletePDFWidget(QWidget):
         self.setLayout(self.vbox)
 
     def on_add_file(self):
-        filename, _ = QFileDialog.getOpenFileName(self, '添加文件', '', 'PDF文件(*.pdf)')
+        filename, _ = QFileDialog.getOpenFileName(
+            self, '添加文件', '', 'PDF文件(*.pdf)')
         if not filename:
             return
         try:
@@ -372,6 +387,7 @@ class DeletePDFWidget(QWidget):
 class MainApplicationWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.ver = "4.2.0"
         self.setStyleSheet('font-family: "Microsoft Yahei"')
         self.setWindowTitle('PDF Pro v3.1')
         self.cw = QWidget()
@@ -384,6 +400,25 @@ class MainApplicationWindow(QMainWindow):
         self.cwl.setContentsMargins(10, 10, 0, 10)
         self.cw.setLayout(self.cwl)
         self.setCentralWidget(self.cw)
+        self.create_menubar()
+
+    def create_menubar(self):
+        self.menu = self.menuBar()
+        self.check_update_menu = self.menu.addMenu("检查更新")
+        self.update_action = self.check_update_menu.addAction('检查更新')
+        self.update_action.triggered.connect(self.is_update_available)
+
+    def is_update_available(self):
+        try:
+            version = urllib.request.urlopen(
+                'http://jasoncoder.pythonanywhere.com').decode()
+            if self.ver < version:
+                toast.show_toast(
+                    '检测到更新', '有PDF Extractor的最新版本！请立刻到jasoncode.pythonanywhere.com下载最新版本。', threaded=True)
+            else:
+                toast.show_toast('不必更新', '本产品已是最新版本。', threaded=True)
+        except Exception:
+            toast.show_toast('错误', '无法连接到服务器', threaded=True)
 
 
 if __name__ == '__main__':
