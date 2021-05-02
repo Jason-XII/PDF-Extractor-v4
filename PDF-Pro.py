@@ -416,17 +416,18 @@ class MainApplicationWindow(QMainWindow):
     def is_update_available(self):
         try:
             version = urllib.request.urlopen(
-                'http://jasoncoder16.pythonanywhere.com/version').read().decode()
+                'http://jasoncoder16.pythonanywhere.com/version').decode()
             if self.ver < version:
                 notification.notify(
-                    title='检测到更新', message=f'您现在的版本是{self.ver}, 但是PDF Extractor{version}已经正式发布。请到jasoncoder16.pythonanywhere.com下载最新版本。', app_icon='pdf-pro.ico')
+                    title='检测到更新', message='有PDF Extractor的最新版本！请立刻到jasoncode.pythonanywhere.com下载最新版本。', app_icon='pdf-pro.ico')
             else:
                 notification.notify(
                     title='不必更新', message='本产品已是最新版本。', app_icon='pdf-pro.ico')
         except Exception as err:
-            print(err)
+    	    print(err)
             notification.notify(title='错误', message='无法连接到服务器', app_icon='pdf-pro.ico')
-            
+
+
 
 if __name__ == '__main__':
     app = QApplication()
