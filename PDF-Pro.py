@@ -8,10 +8,9 @@ from PySide2.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel,
 from PySide2.QtCore import Qt
 from PyPDF2.merger import PdfFileMerger, PdfFileReader, PdfFileWriter
 import tempfile
-import win10toast
+import plyer.platforms.win.notification
+from plyer import notification
 import urllib.request
-
-toast = win10toast.ToastNotifier()
 
 
 def filter_name(name):
@@ -109,16 +108,18 @@ class MergePDFWidget(QWidget):
                     except (OSError, Exception):
                         information = 'PDF文件无法打开，也许是因为格式不正确，也可能是正在被其他程序使用。' \
                                       '请关掉可能使用它的程序后再试。'
-                        toast.show_toast(
-                            'PDF文件无法打开', information, threaded=True)
+                        notification.notify(
+                            title='PDF文件无法打开', message=information, app_icon='pdf-pro.ico')
                     else:
                         break
             merger.write(open(filename, 'wb'))
             self.btn_download.setText('导出PDF文件')
             self.btn_download.setDisabled(False)
-            toast.show_toast('成功', '成功合并PDF，已导出！', threaded=True)
+            notification.notify(
+                title='成功', message='成功合并PDF，已导出！', app_icon='pdf-pro.ico')
         except (IOError, OSError):
-            toast.show_toast('错误', '由于权限错误，无法导出PDF，请换一个路径再试。', threaded=True)
+            notification.notify(
+                title='错误', message='由于权限错误，无法导出PDF，请换一个路径再试。', app_icon='pdf-pro.ico')
             return
 
 
@@ -210,7 +211,8 @@ class ExtractPDFWidget(QWidget):
             except OSError:
                 information = 'PDF文件无法打开，也许是因为格式不正确，也可能是正在被其他程序使用。' \
                               '请关掉可能使用它的程序后再试。'
-                toast.show_toast('PDF文件无法打开', information, threaded=True)
+                notification.notify('PDF文件无法打开', information,
+                                    app_icon='pdf-pro.ico')
                 return
             else:
                 self.spin_start.setDisabled(False)
@@ -270,7 +272,8 @@ class ExtractPDFWidget(QWidget):
                 writer.addPage(page)
         with open(out, 'wb') as pdf:
             writer.write(pdf)
-        toast.show_toast('成功', '成功抽取了PDF中的页码，已导出！', threaded=True)
+        notification.notify(
+            title='成功', message='成功抽取了PDF中的页码，已导出！', app_icon='pdf-pro.ico')
 
     def on_list_item_selected(self):
         self.btn_del_item.setDisabled(False)
@@ -345,7 +348,8 @@ class DeletePDFWidget(QWidget):
         except OSError:
             information = 'PDF文件无法打开，也许是因为格式不正确，也可能是正在被其他程序使用。' \
                           '请关掉可能使用它的程序后再试。'
-            toast.show_toast('PDF文件无法打开', information, threaded=True)
+            notification.notify(title='PDF文件无法打开',
+                                message=information, app_icon='pdf-pro.ico')
             return
         else:
             self.selected = filename
@@ -381,7 +385,8 @@ class DeletePDFWidget(QWidget):
                 for page in range(end, reader.getNumPages()):
                     writer.addPage(reader.getPage(page))
                 writer.write(save_pdf)
-                toast.show_toast('成功', '成功删除PDF指定页码，已导出！', threaded=True)
+                notification.notify(
+                    title='成功', message='成功删除PDF指定页码，已导出！', app_icon='pdf-pro')
 
 
 class MainApplicationWindow(QMainWindow):
@@ -411,15 +416,17 @@ class MainApplicationWindow(QMainWindow):
     def is_update_available(self):
         try:
             version = urllib.request.urlopen(
-                'http://jasoncoder.pythonanywhere.com').decode()
+                'http://jasoncoder16.pythonanywhere.com/version').read().decode()
             if self.ver < version:
-                toast.show_toast(
-                    '检测到更新', '有PDF Extractor的最新版本！请立刻到jasoncode.pythonanywhere.com下载最新版本。', threaded=True)
+                notification.notify(
+                    title='检测到更新', message=f'您现在的版本是{self.ver}, 但是PDF Extractor{version}已经正式发布。请到jasoncoder16.pythonanywhere.com下载最新版本。', app_icon='pdf-pro.ico')
             else:
-                toast.show_toast('不必更新', '本产品已是最新版本。', threaded=True)
-        except Exception:
-            toast.show_toast('错误', '无法连接到服务器', threaded=True)
-
+                notification.notify(
+                    title='不必更新', message='本产品已是最新版本。', app_icon='pdf-pro.ico')
+        except Exception as err:
+            print(err)
+            notification.notify(title='错误', message='无法连接到服务器', app_icon='pdf-pro.ico')
+            
 
 if __name__ == '__main__':
     app = QApplication()
