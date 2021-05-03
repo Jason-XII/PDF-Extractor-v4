@@ -394,7 +394,7 @@ class MainApplicationWindow(QMainWindow):
         super().__init__(parent)
         self.ver = "4.2.1"
         self.setStyleSheet('font-family: "Microsoft Yahei"')
-        self.setWindowTitle('PDF Pro v3.1')
+        self.setWindowTitle(f'PDF Extractor {self.ver}')
         self.cw = QWidget()
         self.cwl = QVBoxLayout(self.cw)
         self.main_tab = tabs.LightTab(self)
@@ -419,12 +419,14 @@ class MainApplicationWindow(QMainWindow):
                 'http://jasoncoder16.pythonanywhere.com/version').read().decode())
             if self.ver < version_info['version']:
                 notification.notify(
-                    title='检测到更新', message=f'您现在的版本是{self.ver}, 但是PDF Extractor{version}已经正式发布。\
+                    title='检测到更新', message=f'您现在的版本是{self.ver}, 但是PDF Extractor{version_info["version"]}已经正式发布。\
                     更新内容：{version_info["note"]}', app_icon='pdf-pro.ico')
             else:
                 notification.notify(
                     title='不必更新', message='本产品已是最新版本。', app_icon='pdf-pro.ico')
         except Exception as err:
+                
+            raise
             notification.notify(title='错误', message='无法连接到服务器', app_icon='pdf-pro.ico')
 
 
