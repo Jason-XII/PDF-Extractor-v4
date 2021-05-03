@@ -392,7 +392,7 @@ class DeletePDFWidget(QWidget):
 class MainApplicationWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.ver = "4.2.0"
+        self.ver = "4.2.1"
         self.setStyleSheet('font-family: "Microsoft Yahei"')
         self.setWindowTitle('PDF Pro v3.1')
         self.cw = QWidget()
@@ -415,16 +415,16 @@ class MainApplicationWindow(QMainWindow):
 
     def is_update_available(self):
         try:
-            version = urllib.request.urlopen(
-                'http://jasoncoder16.pythonanywhere.com/version').decode()
-            if self.ver < version:
+            version_info = eval(urllib.request.urlopen(
+                'http://jasoncoder16.pythonanywhere.com/version').read().decode())
+            if self.ver < version_info['version']:
                 notification.notify(
-                    title='检测到更新', message='有PDF Extractor的最新版本！请立刻到jasoncode.pythonanywhere.com下载最新版本。', app_icon='pdf-pro.ico')
+                    title='检测到更新', message=f'您现在的版本是{self.ver}, 但是PDF Extractor{version}已经正式发布。\
+                    更新内容：{version_info["note"]}', app_icon='pdf-pro.ico')
             else:
                 notification.notify(
                     title='不必更新', message='本产品已是最新版本。', app_icon='pdf-pro.ico')
         except Exception as err:
-    	    print(err)
             notification.notify(title='错误', message='无法连接到服务器', app_icon='pdf-pro.ico')
 
 
