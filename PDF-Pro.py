@@ -1,6 +1,6 @@
 from os.path import split
 from os import startfile
-from elegantUI import *
+from JasonUI import *
 from PySide2.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel,
                                QApplication, QWidget, QMainWindow, QLineEdit,
                                QFileDialog, QListWidgetItem, QStackedWidget,
@@ -21,8 +21,6 @@ class MergePDFWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.pdf_merger = PdfFileMerger(strict=False)
-        self.box = QVBoxLayout(self)
-        self.box.setContentsMargins(0, 20, 20, 10)
         self.construct_buttons()
         self.setLayout(self.box)
 
@@ -31,8 +29,6 @@ class MergePDFWidget(QWidget):
         self.file_path.setPlaceholderText('这里会显示文件路径')
         self.file_path.setReadOnly(True)
         self.file_path.setStyleSheet('padding: 10px;')
-        # self.btn_select_file = buttons.DarkerButton(icon='打开文件.png', text='添加PDF',
-        #                                          parent=self, on_press=self.btn_add_file_clicked)
         self.pdf_listview = lists.SmartList(self,
                                             on_item_click=self.pdf_item_clicked,
                                             on_item_double_click=self.pdf_item_double_clicked,
@@ -42,30 +38,24 @@ class MergePDFWidget(QWidget):
         self.btn_delete_item = self.pdf_listview.add_delete_item_btn('删除选定项目',
                                                                      btn_type='darker',
                                                                      icon='删除一项.png',
-                                                                     delete_callback=self.del_callback)
+                                                                     delete_callback=self.after_delete)
         self.btn_clear_all = self.pdf_listview.add_clear_btn('清空所有项目',
                                                              btn_type='darker',
                                                              icon='删除.png',
-                                                             clear_callback=self.clear_callback)
+                                                             clear_callback=self.after_clear)
         self.btn_download = buttons.DarkerButton(icon='下载文件.png', text='导出PDF文件',
                                                  parent=self, on_press=self.merge_and_write)
         self.btn_download.setDisabled(True)
-        self.first_line_hbox = QHBoxLayout(self)
-        self.first_line_hbox.addWidget(self.file_path)
-        self.first_line_hbox.addWidget(self.btn_select_file)
-        self.box.addLayout(self.first_line_hbox)
-        self.box.addWidget(self.pdf_listview)
-        self.third_line_hbox = QHBoxLayout(self)
-        self.third_line_hbox.addWidget(self.btn_delete_item)
-        self.third_line_hbox.addWidget(self.btn_clear_all)
-        self.box.addLayout(self.third_line_hbox)
-        self.box.addWidget(self.btn_download)
+        self.first_line_hbox = layouts.HorizontalGroup(self.file_path, self.btn_select_file, parent=None)
+        self.third_line_hbox = layouts.HorizontalGroup(self.btn_delete_item, self.btn_clear_all, parent=None)
+        self.box = layouts.VerticalGroup(self.first_line_hbox, self.pdf_listview, self.third_line_hbox, self.btn_download, parent=None)
+        self.box.setContentsMargins(0, 20, 20, 10)
 
-    def del_callback(self):
+    def after_delete(self):
         if len(self.pdf_listview.items) == 0:
             self.btn_download.setDisabled(True)
 
-    def clear_callback(self):
+    def after_clear(self):
         if len(self.pdf_listview.items) == 0:
             self.btn_download.setDisabled(True)
 
