@@ -35,6 +35,8 @@ class MergePDFWidget(QWidget):
                                             add_filter=filter_name)
         self.btn_select_file = self.pdf_listview.add_btn_add(
             '添加PDF', 'darker', '打开文件.png',  self.btn_add_file_clicked)
+        self.btn_move_up = self.pdf_listview.add_btn_up('向上移动项目', btn_type='darker', icon='up.png')
+        self.btn_move_down = self.pdf_listview.add_btn_down('向下移动项目', 'darker', 'down.png')
         self.btn_delete_item = self.pdf_listview.add_delete_item_btn('删除选定项目',
                                                                      btn_type='darker',
                                                                      icon='删除一项.png',
@@ -47,7 +49,7 @@ class MergePDFWidget(QWidget):
                                                  parent=self, on_press=self.merge_and_write)
         self.btn_download.setDisabled(True)
         self.first_line_hbox = layouts.HorizontalGroup(self.file_path, self.btn_select_file, parent=None)
-        self.third_line_hbox = layouts.HorizontalGroup(self.btn_delete_item, self.btn_clear_all, parent=None)
+        self.third_line_hbox = layouts.HorizontalGroup(self.btn_delete_item, self.btn_clear_all, self.btn_move_up, self.btn_move_down)
         self.box = layouts.VerticalGroup(self.first_line_hbox, self.pdf_listview, self.third_line_hbox, self.btn_download, parent=None)
         self.box.setContentsMargins(0, 20, 20, 10)
 
@@ -125,24 +127,14 @@ class ExtractPDFWidget(QWidget):
         return result
 
     def construct_UI(self):
-        self.vbox = QVBoxLayout(self)
-        self.vbox.setContentsMargins(0, 20, 20, 10)
-        # setup the first line of UI
-        self.first_line_hbox = QHBoxLayout()
-        self.first_line_hbox.setContentsMargins(0, 0, 0, 0)
         self.line_edit_file_path = QLineEdit(self)
         self.line_edit_file_path.setPlaceholderText('这里会显示文件路径')
         self.line_edit_file_path.setReadOnly(True)
         self.line_edit_file_path.setStyleSheet('padding: 10px;')
-        self.first_line_hbox.addWidget(self.line_edit_file_path)
         self.list = lists.SmartList(self, on_item_click=self.on_list_item_selected,
                                     on_item_double_click=self.on_double_click, add_filter=self.filter_name)
         self.btn_add_pdf = self.list.add_btn_add(
             '选择PDF', 'darker', '打开文件.png', self.add_pdf_dialog_triggered)
-        self.first_line_hbox.addWidget(self.btn_add_pdf)
-        self.vbox.addLayout(self.first_line_hbox)
-        self.second_line_hbox = QHBoxLayout()
-        self.hbox3 = QHBoxLayout()
         self.spin_start = spinbox.SpinBox(self)
         self.spin_start.setMinimum(1)
         self.spin_start.setDisabled(True)
@@ -154,38 +146,27 @@ class ExtractPDFWidget(QWidget):
         self.btn_submit = buttons.DarkerButton(text='添加已选择的PDF文件', parent=self,
                                                on_press=self.on_add, icon='添加.png')
         self.btn_submit.setDisabled(True)
-        l = QLabel('抽取')
-        l.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.hbox3.addWidget(l)
-        self.hbox3.addWidget(self.spin_start)
-        self.hbox3.addWidget(QLabel('至'))
-        self.hbox3.addWidget(self.spin_end)
-        self.hbox3.addWidget(QLabel('页'))
-        self.second_line_hbox.addLayout(self.hbox3)
-        self.second_line_hbox.addWidget(self.btn_submit)
-        self.vbox.addLayout(self.second_line_hbox)
-
-        # setup the third line of UI
-
-        self.vbox.addWidget(self.list)
-
-        # setup the fourth line of UI
-        self.fourth_line_hbox = QHBoxLayout(self)
-        self.fourth_line_hbox.setContentsMargins(0, 0, 0, 0)
+        extract_label = QLabel('抽取')
+        extract_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.btn_del_item = self.list.add_delete_item_btn(
             '删除选定项目', 'darker', '删除一项.png', self.del_callback)
         self.btn_del_item.setDisabled(True)
         self.btn_clear = self.list.add_clear_btn(
             '删除所有项目', 'darker', '删除.png', self.clear_callback)
         self.btn_clear.setDisabled(True)
-        self.fourth_line_hbox.addWidget(self.btn_del_item)
-        self.fourth_line_hbox.addWidget(self.btn_clear)
-        self.vbox.addLayout(self.fourth_line_hbox)
-
+        self.btn_move_up = self.list.add_btn_up('向上移动项目', btn_type='darker', icon='up.png')
+        self.btn_move_down = self.list.add_btn_down('向下移动项目', 'darker', 'down.png')
         self.btn_export = buttons.DarkerButton(
             '导出PDF文件', self.on_export, self, icon='下载文件.png')
         self.btn_export.setDisabled(True)
-        self.vbox.addWidget(self.btn_export)
+        self.first_line_hbox = layouts.HorizontalGroup(self.line_edit_file_path, self.btn_add_pdf)
+        self.first_line_hbox.setContentsMargins(0, 0, 0, 0)
+        self.inline_hbox = layouts.HorizontalGroup(extract_label, self.spin_start, QLabel('至'), self.spin_end, QLabel('页'))
+        self.second_line_hbox = layouts.HorizontalGroup(self.inline_hbox, self.btn_submit)
+        self.fourth_line_hbox = layouts.HorizontalGroup(self.btn_del_item, self.btn_clear, self.btn_move_up, self.btn_move_down)
+        self.fourth_line_hbox.setContentsMargins(0, 0, 0, 0)
+        self.vbox = layouts.VerticalGroup(self.first_line_hbox, self.second_line_hbox, self.list, self.fourth_line_hbox, self.btn_export)
+        self.vbox.setContentsMargins(0, 20, 20, 10)
         self.setLayout(self.vbox)
 
     def add_pdf_dialog_triggered(self):
@@ -382,7 +363,7 @@ class DeletePDFWidget(QWidget):
 class MainApplicationWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.ver = "4.2.1"
+        self.ver = "4.2.2"
         self.setStyleSheet('font-family: "Microsoft Yahei"')
         self.setWindowTitle(f'PDF Extractor {self.ver}')
         self.cw = QWidget()
