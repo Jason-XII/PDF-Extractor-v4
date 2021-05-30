@@ -6,7 +6,7 @@ from PySide2.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel,
                                QFileDialog, QListWidgetItem, QStackedWidget,
                                QSpinBox, QRadioButton, QAction)
 from PySide2.QtCore import Qt
-from PyPDF2.merger import PdfFileMerger, PdfFileReader, PdfFileWriter
+from PyPDF4.merger import PdfFileMerger, PdfFileReader, PdfFileWriter
 import tempfile
 import plyer.platforms.win.notification
 from plyer import notification
@@ -91,22 +91,16 @@ class MergePDFWidget(QWidget):
         merger = PdfFileMerger(strict=False)
 
         try:
-            self.btn_download.setText('正在导出······')
-            self.btn_download.setDisabled(True)
             for item in self.pdf_listview.items:
-                while True:
-                    try:
-                        merger.append(open(item, 'rb'))
-                    except (OSError, Exception):
-                        information = 'PDF文件无法打开，也许是因为格式不正确，也可能是正在被其他程序使用。' \
-                                      '请关掉可能使用它的程序后再试。'
-                        notification.notify(
-                            title='PDF文件无法打开', message=information, app_icon='pdf-pro.ico')
-                    else:
-                        break
+                try:
+                    merger.append(open(item, 'rb'))
+                except (OSError, Exception):
+                    information = f'在尝试合并{split(item)[-1][:15]}···{item[-10:]}时出现错误，该文件可能已被损坏或占用。' \
+                                  '请关掉可能使用它的程序后再试。'
+                    notification.notify(
+                        title='PDF文件无法打开', message=information, app_icon='pdf-pro.ico')
+                    return
             merger.write(open(filename, 'wb'))
-            self.btn_download.setText('导出PDF文件')
-            self.btn_download.setDisabled(False)
             notification.notify(
                 title='成功', message='成功合并PDF，已导出！', app_icon='pdf-pro.ico')
         except (IOError, OSError):
@@ -149,10 +143,10 @@ class ExtractPDFWidget(QWidget):
         extract_label = QLabel('抽取')
         extract_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.btn_del_item = self.list.add_delete_item_btn(
-            '删除选定项目', 'darker', '删除一项.png', self.del_callback)
+            '删除选定项目', 'darker', '删除一项.png')
         self.btn_del_item.setDisabled(True)
         self.btn_clear = self.list.add_clear_btn(
-            '删除所有项目', 'darker', '删除.png', self.clear_callback)
+            '删除所有项目', 'darker', '删除.png')
         self.btn_clear.setDisabled(True)
         self.btn_move_up = self.list.add_btn_up('向上移动项目', btn_type='darker', icon='up.png')
         self.btn_move_down = self.list.add_btn_down('向下移动项目', 'darker', 'down.png')
@@ -192,14 +186,6 @@ class ExtractPDFWidget(QWidget):
                 self.selected = filename
                 self.line_edit_file_path.setText(filename)
                 self.btn_add_pdf.setText('重新选择PDF')
-
-    def del_callback(self):
-        if len(self.list.items) == 0:
-            self.btn_export.setDisabled(True)
-
-    def clear_callback(self):
-        if len(self.list.items) == 0:
-            self.btn_export.setDisabled(True)
 
     def on_add(self):
         start = int(self.spin_start.value())
@@ -360,6 +346,27 @@ class DeletePDFWidget(QWidget):
                     title='成功', message='成功删除PDF指定页码，已导出！', app_icon='pdf-pro')
 
 
+class ExtractImageWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.btn_select_pdf = buttons.DarkerButton('添加PDF', self.on_add_pdf, self, '打开文件.png')
+        self.btn_select_directory = buttons.DarkerButton('选择导出图片位置', icon='打开文件.png')
+        self.list = lists.SmartList(self)
+        self.btn_del_item = self.list.add_delete_item_btn('删除选定项目', 'darker', '删除一项.png')
+        self.btn_clear = self.list.add_clear_btn('清空所有项目', 'darker', '删除.png')
+        self.btn_up = self.list.add_btn_up('向上移动项目', 'darker', 'up.png')
+        self.btn_down = self.list.add_btn_down('向下移动项目', 'darker', 'down.png')
+        self.btn_export = buttons.DarkerButton('导出图片至文件夹', icon='下载文件.png')
+        self.first_line_hbox = layouts.HorizontalGroup(self.btn_select_pdf, self.btn_select_directory)
+        self.third_line_hbox = layouts.HorizontalGroup(self.btn_del_item, self.btn_clear, self.btn_up, self.btn_down)
+        self.vbox = layouts.VerticalGroup(self.first_line_hbox, self.list, self.third_line_hbox, self.btn_export)
+        self.setLayout(self.vbox)
+        self.setContentsMargins(0, 20, 20, 10)
+
+    def on_add_pdf(self):
+        pass
+
+
 class MainApplicationWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -372,6 +379,7 @@ class MainApplicationWindow(QMainWindow):
         self.main_tab.addTab(MergePDFWidget(), '合并PDF')
         self.main_tab.addTab(ExtractPDFWidget(self), '抽取PDF页码')
         self.main_tab.addTab(DeletePDFWidget(self), '删除PDF页码')
+        self.main_tab.addTab(ExtractImageWidget(self), '抽取PDF中的图片')
         self.cwl.addWidget(self.main_tab)
         self.cwl.setContentsMargins(10, 10, 0, 10)
         self.cw.setLayout(self.cwl)
