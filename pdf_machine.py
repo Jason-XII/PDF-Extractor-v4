@@ -1,0 +1,75 @@
+from PyPDF4.merger import PdfFileReader, PdfFileWriter
+from typing import List, Tuple
+import fitz
+import re
+import os
+import time
+
+
+class PDFExtractMachine:
+    def __init__(self, pdf_data: List[Tuple[str, int, int]]):
+        self.data = pdf_data
+
+    def extract_all(self, output_filename:str):
+        writer = PdfFileWriter()
+        for data in self.data:
+            start, end = data[1], data[2]
+            reader = PdfFileReader(open(data[0], 'rb'))
+            for page_num in range(int(start) - 1, int(end)):
+                page = reader.getPage(page_num)
+                writer.addPage(page)
+        with open(output_filename, 'wb') as pdf:
+            writer.write(pdf)
+
+    def extract_one(self, in_filename: str, start: int, end: int, out_filename: str):
+        writer = PdfFileWriter()
+        reader = PdfFileReader(open(in_filename, 'rb'))
+        for page_num in range(int(start) - 1, int(end)):
+            page = reader.getPage(page_num)
+            writer.addPage(page)
+        with open(out_filename, 'wb') as pdf:
+            writer.write(pdf)
+
+
+class PDFMergeMachine:
+    def __init__(self, pdf_filenames: List[str]):
+        self.filenames = pdf_filenames
+
+    def merge(self):
+        writer = PdfFileWriter()
+        for filename in self.filenames:
+            reader = PdfFileReader(open(filename, 'rb'))
+            writer.appendPagesFromReader(reader)
+
+
+class PDFExtractImageMachine:
+    def __init__(self, input_pdf_list: str, output_dir: str):
+        self.pdf_list = input_pdf_list
+        self.output_dir = output_dir
+        self.count = 0
+
+    def extract(self):
+        t0 = time.time()
+        for pdf in self.pdf_list:
+            doc = fitz.open(pdf)
+            for page in doc:
+                images = page.getImageList()
+                for image in images:
+                    self.count += 1
+                    pix = fitz.Pixmap(doc, image[0])
+                    if pix.n >= 5:
+                        pix = fitz.Pixmap(fitz.csRGB, pix)
+                    pix.writePNG(os.path.join(self.output_dir, str(self.count))+'.png')
+        t1 = time.time()
+        return f"{t1-t0}s抽取了{self.count}张图片。"
+
+
+class PDFExtractTablesMachine:
+    def __init__(self, input_pdf):
+        self.input_pdf = input_pdf
+
+    def extract(self, page):
+        pass
+
+
+
