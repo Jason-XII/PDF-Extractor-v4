@@ -370,7 +370,6 @@ class ExtractImageWidget(QWidget):
         notification.notify('成功', '抽取PDF图片成功，已导出！', app_icon='pdf-pro.ico')
 
 
-
 class MainApplicationWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -407,8 +406,6 @@ class MainApplicationWindow(QMainWindow):
                 notification.notify(
                     title='不必更新', message='本产品已是最新版本。', app_icon='pdf-pro.ico')
         except Exception as err:
-                
-            raise
             notification.notify(title='错误', message='无法连接到服务器', app_icon='pdf-pro.ico')
 
 

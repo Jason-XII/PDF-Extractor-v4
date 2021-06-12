@@ -1,9 +1,8 @@
 from PyPDF4.merger import PdfFileReader, PdfFileWriter
 from typing import List, Tuple
 import fitz
-import re
 import os
-import time
+import pdfplumber
 
 
 class PDFExtractMachine:
@@ -49,7 +48,6 @@ class PDFExtractImageMachine:
         self.count = 0
 
     def extract(self):
-        t0 = time.time()
         for pdf in self.pdf_list:
             doc = fitz.open(pdf)
             for page in doc:
@@ -60,16 +58,3 @@ class PDFExtractImageMachine:
                     if pix.n >= 5:
                         pix = fitz.Pixmap(fitz.csRGB, pix)
                     pix.writePNG(os.path.join(self.output_dir, str(self.count))+'.png')
-        t1 = time.time()
-        return f"{t1-t0}s抽取了{self.count}张图片。"
-
-
-class PDFExtractTablesMachine:
-    def __init__(self, input_pdf):
-        self.input_pdf = input_pdf
-
-    def extract(self, page):
-        pass
-
-
-
