@@ -89,7 +89,7 @@ class MergePDFWidget(QWidget):
             return
         merge_machine = PDFMergeMachine(self.pdf_listview.items)
         try:
-            merge_machine.merge()
+            merge_machine.merge(filename)
             notification.notify(
                 title='成功', message='成功合并PDF，已导出！', app_icon='pdf-pro.ico')
         except (IOError, OSError):
