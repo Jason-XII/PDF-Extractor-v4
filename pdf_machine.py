@@ -2,14 +2,13 @@ from PyPDF4.merger import PdfFileReader, PdfFileWriter
 from typing import List, Tuple
 import fitz
 import os
-import pdfplumber
 
 
 class PDFExtractMachine:
     def __init__(self, pdf_data: List[Tuple[str, int, int]]):
         self.data = pdf_data
 
-    def extract_all(self, output_filename:str):
+    def extract_all(self, output_filename: str):
         writer = PdfFileWriter()
         for data in self.data:
             start, end = data[1], data[2]
@@ -34,11 +33,12 @@ class PDFMergeMachine:
     def __init__(self, pdf_filenames: List[str]):
         self.filenames = pdf_filenames
 
-    def merge(self):
+    def merge(self, output_filename: str):
         writer = PdfFileWriter()
         for filename in self.filenames:
             reader = PdfFileReader(open(filename, 'rb'))
             writer.appendPagesFromReader(reader)
+        writer.write(open(output_filename, 'wb'))
 
 
 class PDFExtractImageMachine:
@@ -57,4 +57,5 @@ class PDFExtractImageMachine:
                     pix = fitz.Pixmap(doc, image[0])
                     if pix.n >= 5:
                         pix = fitz.Pixmap(fitz.csRGB, pix)
-                    pix.writePNG(os.path.join(self.output_dir, str(self.count))+'.png')
+                    pix.writePNG(os.path.join(
+                        self.output_dir, str(self.count)) + '.png')
