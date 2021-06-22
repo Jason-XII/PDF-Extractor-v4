@@ -390,8 +390,69 @@ class ExtractImageWidget(QWidget):
         extract_image_machine = PDFExtractImageMachine(
             self.list.items, self.dir)
         extract_image_machine.extract()
-        notification.notify('成功', '抽取PDF图片成功，已导出！', app_icon='pdf-pro.ico')
+        notification.notify('成功', '抽取PDF图片成功，已导出！', 
+            app_icon='pdf-pro.ico')
 
+
+class DeletePDFWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.btn_select_pdf = buttons.DarkerButton('选择PDF文件（可多选）', 
+                                                    self.on_add,
+                                                    self, 
+                                                    icon='打开文件.png')
+        self.list = lists.SmartList(self)
+        self.btn_delete_item = self.list.add_delete_item_btn('删除选定项目',
+                                                        'darker', 
+                                                        icon='删除一项.png')
+        self.btn_clear = self.list.add_clear_btn('清空所有项目', 'darker', icon='删除.png')
+        self.label_1 = QLabel('删除', self)
+        self.spin_start = QSpinBox(self)
+        self.spin_start.setMinimum(1)
+        self.spin_start.setMaximum(5000)
+        self.label_2 = QLabel('至', self)
+        self.spin_end = QSpinBox(self)
+        self.spin_end.setMinimum(1)
+        self.spin_end.setMaximum(5000)
+        self.label_3 = QLabel('页', self)
+        self.btn_export = buttons.DarkerButton('选择导出PDF位置',
+                                                icon='下载文件.png',
+                                                on_press=self.on_export)
+
+        self.line3_hbox = layouts.HorizontalGroup(self.btn_delete_item,
+                                                self.btn_clear)
+        self.line4_hbox = layouts.HorizontalGroup(self.label_1, 
+                                                self.spin_start,
+                                                self.label_2, 
+                                                self.spin_end, 
+                                                self.label_3, 0)
+        self.vbox = layouts.VerticalGroup(self.btn_select_pdf,
+                                        self.list,
+                                        self.line3_hbox,
+                                        self.line4_hbox,
+                                        self.btn_export)
+        self.setLayout(self.vbox)
+        self.setContentsMargins(-10, 10, 20, 10)
+
+    def on_add(self):
+        filenames, _ = QFileDialog.getOpenFileNames(self, '选择PDF文件（可多选）',
+                                                    filter='PDF文件(*.pdf)')
+        if not filenames:
+            return
+        self.list.addItems(filenames)
+
+    def on_export(self):
+        if len(self.list.items) > 1:
+            path = QFileDialog.getExistingDirectory(self, '选择导出位置')
+        elif len(self.list.items) == 1:
+            path, _ = QFileDialog.getSaveFileName(self, '选择导出位置',
+                                                 filter='PDF文件(*.pdf)')
+        else:
+            return
+        print(path)
+        machine = PDFDeleteMachine(self.list.items)
+        machine.delete([self.spin_start.value(), self.spin_end.value()], path)
+        notification.notify('成功', '页码删除成功，已导出！', app_icon='pdf-pro.ico')
 
 class MainApplicationWindow(QMainWindow):
     def __init__(self, parent=None):
@@ -404,6 +465,7 @@ class MainApplicationWindow(QMainWindow):
         self.main_tab = tabs.LightTab(self)
         self.main_tab.addTab(MergePDFWidget(), '合并PDF')
         self.main_tab.addTab(ExtractPDFWidget(self), '抽取PDF页码')
+        self.main_tab.addTab(DeletePDFWidget(self), '删除PDF页码')
         self.main_tab.addTab(ExtractImageWidget(self), '抽取PDF中的图片')
         self.cwl.addWidget(self.main_tab)
         self.cwl.setContentsMargins(10, 10, 0, 10)
