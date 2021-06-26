@@ -4,7 +4,7 @@ from JasonUI import *
 from PySide2.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel,
                                QApplication, QWidget, QMainWindow, QLineEdit,
                                QFileDialog, QListWidgetItem, QStackedWidget,
-                               QSpinBox, QRadioButton)
+                               QSpinBox, QRadioButton, QComboBox)
 from PySide2.QtCore import Qt
 from pdf_machine import *
 import tempfile
@@ -454,6 +454,49 @@ class DeletePDFWidget(QWidget):
         machine.delete([self.spin_start.value(), self.spin_end.value()], path)
         notification.notify('成功', '页码删除成功，已导出！', app_icon='pdf-pro.ico')
 
+
+class RotatePDFWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.btn_select_pdf = buttons.DarkerButton('选择PDF文件', self.on_select, icon='打开文件.png')
+        self.combo_clockwise = QComboBox(self)
+        self.combo_clockwise.insertItems(0, ['顺时针', '逆时针'])
+        self.label_0 = QLabel('旋转第', self)
+        self.spin_page = QSpinBox(self)
+        self.spin_page.setMinimum(1)
+        self.spin_page.setMaximum(10000)
+        self.label_1 = QLabel('页', self)
+        self.spin_angle = QSpinBox(self)
+        self.spin_angle.setMinimum(0)
+        self.spin_angle.setMaximum(180)
+        self.spin_angle.setSuffix('度')
+        self.btn_download = buttons.DarkerButton('导出PDF文件', self.on_export, icon='下载文件.png')
+        self.line2 = layouts.HorizontalGroup(self.combo_clockwise, self.label_0, self.spin_page, self.label_1, self.spin_angle, 0)
+        self.vbox = layouts.VerticalGroup(self.btn_select_pdf,self.line2, self.btn_download, 0)
+        self.setLayout(self.vbox)
+        self.selected = None
+
+    def on_select(self):
+        filename, _ = QFileDialog.getOpenFileName(self, '选择PDF', '', 'PDF文件(*.pdf)')
+        if not filename:
+            return
+        self.selected = filename
+        self.btn_select_pdf.setText(f'已选择：{filter_name(self.selected)[:25]}')
+
+    def on_export(self):
+        if self.selected is None:
+            return
+        out_filename, _ = QFileDialog.getSaveFileName(self, '选择导出位置', filter='PDF文件(*.pdf)')
+        if not out_filename:
+            return
+        data = self.combo_clockwise.currentText()
+        print(data)
+        angle = int(self.spin_angle.value())
+        if data == '逆时针':
+            angle = -angle
+        machine = PDFRotateMachine(self.selected)
+        machine.rotate_clockwise(int(self.spin_page.value()), angle, out_filename)
+
 class MainApplicationWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -467,6 +510,7 @@ class MainApplicationWindow(QMainWindow):
         self.main_tab.addTab(ExtractPDFWidget(self), '抽取PDF页码')
         self.main_tab.addTab(DeletePDFWidget(self), '删除PDF页码')
         self.main_tab.addTab(ExtractImageWidget(self), '抽取PDF中的图片')
+        self.main_tab.addTab(RotatePDFWidget(self), '旋转PDF')
         self.cwl.addWidget(self.main_tab)
         self.cwl.setContentsMargins(10, 10, 0, 10)
         self.cw.setLayout(self.cwl)
