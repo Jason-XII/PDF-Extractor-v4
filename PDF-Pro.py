@@ -6,6 +6,7 @@ from PySide2.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel,
                                QFileDialog, QListWidgetItem, QStackedWidget,
                                QSpinBox, QRadioButton, QComboBox)
 from PySide2.QtCore import Qt
+from PySide2.QtGui import QIcon
 from pdf_machine import *
 import tempfile
 import plyer.platforms.win.notification
@@ -462,16 +463,16 @@ class RotatePDFWidget(QWidget):
         self.combo_clockwise = QComboBox(self)
         self.combo_clockwise.insertItems(0, ['顺时针', '逆时针'])
         self.label_0 = QLabel('旋转第', self)
-        self.spin_page = QSpinBox(self)
-        self.spin_page.setMinimum(1)
-        self.spin_page.setMaximum(10000)
+        self.page_edit = QLineEdit(self)
+        self.page_edit.setStyleSheet('padding: 0.4em;')
+        self.page_edit.setPlaceholderText('1-1为单页，5-10为多页')
         self.label_1 = QLabel('页', self)
         self.spin_angle = QSpinBox(self)
         self.spin_angle.setMinimum(0)
         self.spin_angle.setMaximum(180)
         self.spin_angle.setSuffix('度')
         self.btn_download = buttons.DarkerButton('导出PDF文件', self.on_export, icon='下载文件.png')
-        self.line2 = layouts.HorizontalGroup(self.combo_clockwise, self.label_0, self.spin_page, self.label_1, self.spin_angle, 0)
+        self.line2 = layouts.HorizontalGroup(self.combo_clockwise, self.label_0, self.page_edit, self.label_1, self.spin_angle, 0)
         self.vbox = layouts.VerticalGroup(self.btn_select_pdf,self.line2, self.btn_download, 0)
         self.setLayout(self.vbox)
         self.selected = None
@@ -490,17 +491,23 @@ class RotatePDFWidget(QWidget):
         if not out_filename:
             return
         data = self.combo_clockwise.currentText()
-        print(data)
         angle = int(self.spin_angle.value())
+        try:
+            start, end = self.page_edit.text().replace(' ', '').split('-')
+            start, end = int(start), int(end)
+        except: 
+            notification.notify(title='格式错误', message='选择页码的格式不正确。', app_icon='pdf-pro.ico')
+            return
         if data == '逆时针':
             angle = -angle
         machine = PDFRotateMachine(self.selected)
-        machine.rotate_clockwise(int(self.spin_page.value()), angle, out_filename)
+        machine.rotate_clockwise(start, end, angle, out_filename)
 
 class MainApplicationWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.ver = "4.2.2"
+        self.ver = "4.5.1"
+        self.setWindowIcon(QIcon('pdf-pro.ico'))
         self.setStyleSheet('font-family: "Microsoft Yahei"')
         self.setWindowTitle(f'PDF Extractor {self.ver}')
         self.cw = QWidget()

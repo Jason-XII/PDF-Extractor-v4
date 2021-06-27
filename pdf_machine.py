@@ -79,19 +79,24 @@ class PDFRotateMachine:
         self.filename = filename
         self.writer = PdfFileWriter()
 
-    def rotate_clockwise(self, page, angle, output_filename: str):
-        page -= 1
+    def rotate_clockwise(self, start, end, angle, output_filename: str):
+        start -= 1
         reader = PdfFileReader(open(self.filename, 'rb'))
-        rotated_page = reader.getPage(page)
-        if angle > 0:
-            rotated_page.rotateClockwise(angle)
-        else:
-            rotated_page.rotateCounterClockwise(abs(angle))
-        for i in range(page):
+        pages = []
+        for page in range(start, end):
+            print(page)
+            rotated_page = reader.getPage(page)
+            if angle > 0:
+                rotated_page.rotateClockwise(angle)
+            else:
+                rotated_page.rotateCounterClockwise(abs(angle))
+            pages.append(rotated_page)
+        for i in range(start):
             print('i', i)
             self.writer.addPage(reader.getPage(i))
-        self.writer.addPage(rotated_page)
-        for j in range(page+1, reader.numPages-1):
+        for k in pages:
+            self.writer.addPage(k)
+        for j in range(end, reader.numPages-1):
             print('j', j)
             self.writer.addPage(reader.getPage(j))
         self.writer.write(open(output_filename, 'wb'))
