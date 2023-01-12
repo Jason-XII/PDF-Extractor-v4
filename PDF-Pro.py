@@ -646,7 +646,7 @@ class MainApplicationWindow(QMainWindow):
                 title='错误', message='无法连接到服务器', app_icon='pdf-pro.ico')
 
     def get_help(self):
-        webbrowser.open("http://jasoncoder16.pythonanywhere.com/help")
+        webbrowser.open("https://github.com/Jason-XII/PDF-Extractor-v4")
 
 
 if __name__ == '__main__':
