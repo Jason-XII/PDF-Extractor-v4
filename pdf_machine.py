@@ -1,7 +1,10 @@
-from PyPDF4.merger import PdfFileReader, PdfFileWriter
-from typing import List, Tuple
-import fitz
 import os
+from typing import List, Tuple
+
+import fitz
+from PyPDF4.merger import PdfFileReader, PdfFileWriter
+
+import pdf_redactor
 
 
 class PDFExtractMachine:
@@ -52,14 +55,15 @@ class PDFExtractImageMachine:
         for pdf in self.pdf_list:
             doc = fitz.open(pdf)
             for page in doc:
-                images = page.getImageList()
+                images = page.get_images()
                 for image in images:
                     self.count += 1
                     pix = fitz.Pixmap(doc, image[0])
                     if pix.n >= 5:
                         pix = fitz.Pixmap(fitz.csRGB, pix)
-                    pix.writePNG(os.path.join(
-                        self.output_dir, str(self.count)) + '.png')
+                    with open(os.path.join(
+                        self.output_dir, str(self.count)) + '.png', 'wb') as f:
+                        f.write(pix.tobytes())
 
 
 class PDFDeleteMachine:
@@ -100,3 +104,53 @@ class PDFRotateMachine:
             print('j', j)
             self.writer.addPage(reader.getPage(j))
         self.writer.write(open(output_filename, 'wb'))
+
+
+class PDFReplaceTextMachine:
+    def __init__(self, input_filename: str):
+        self.input = input_filename
+        self.options = pdf_redactor.RedactorOptions()
+
+    def replace_pdf(self, replacement: list, output_filename: str):
+        input_s = open(self.input, 'rb')
+        self.options.input_stream = input_s
+        output_s = open(output_filename, 'wb')
+        self.options.output_stream = output_s
+        self.options.content_filters = replacement
+        pdf_redactor.redactor(self.options)
+        input_s.close()
+        output_s.close()
+
+
+class PDFRemoveImageMachine:
+    def __init__(self, input_filename: str):
+        self.input = input_filename
+
+    def find_possible_watermarks(self):
+        document = fitz.open(self.input)
+        image_dict = {}
+        possible_watermarks = []
+        for each_page in document:
+            print(dir(each_page))
+            image_list = each_page.get_images()
+            for info in image_list:
+                print(info)
+                pix = fitz.Pixmap(document, info[0])
+                png = pix.tobytes()  # return picture in png format
+                image_dict.setdefault(png, 0)
+                image_dict[png] += 1
+        for (image, count) in image_dict.items():
+            if count >= 2:  # 10页PDF，如果出现4张以上则怀疑是水印
+                possible_watermarks.append(image)
+        return possible_watermarks
+
+    def remove_image(self, watermark_image: bytes, out_filename: str) -> None:
+        document = fitz.open(self.input)
+        for each_page in document:
+            image_list = each_page.get_images()
+            for image_info in image_list:
+                pix = fitz.Pixmap(document, image_info[0])
+                png = pix.tobytes()  # return picture in png format
+                if png == watermark_image:
+                    document._deleteObject(image_info[0])
+        document.save(out_filename)
